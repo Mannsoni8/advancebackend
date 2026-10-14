@@ -3,4 +3,7 @@ services:
     build: ./backend
     ports:
       - 8000:5000
-      
+  frotend:
+    build: ./frotend
+    ports:
+      - 5173:5173    
