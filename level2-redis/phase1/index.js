@@ -6,7 +6,7 @@ import Redis from "ioredis";
 dotenv.config();
 
 const app = express();
-const redis = new Redis(process.env.REDIS_URL);
+export const redis = new Redis(process.env.REDIS_URL);
 
 app.use(express.json());
 
