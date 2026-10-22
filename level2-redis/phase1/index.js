@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  return res.status(200).json({ message: "hello docker prac here" });
+  return res.status(200).json({ message: "hello redis prac here" });
 });
 
 const port = process.env.PORT || 5000;
