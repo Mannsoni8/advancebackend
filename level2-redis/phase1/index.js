@@ -1,10 +1,12 @@
 import dotenv from "dotenv";
-import express from "express";
+import express, { json } from "express";
 import connectedDB from "./src/lib/db.js";
 import userModel from "./src/model/user.model.js";
+import Redis from "ioredis";
 dotenv.config();
 
 const app = express();
+const redis = new Redis(process.env.REDIS_URL);
 
 app.use(express.json());
 
@@ -16,6 +18,9 @@ const port = process.env.PORT || 5000;
 
 app.post("/create", async (req, res) => {
   const { name, email, password } = req.body;
+
+  await redis.del("user:all");
+
   const user = await userModel.create({
     name,
     email,
@@ -26,6 +31,19 @@ app.post("/create", async (req, res) => {
 
 app.get("/get", async (req, res) => {
   const user = await userModel.find({});
+  return res.json(user);
+});
+
+app.get("/get-with-redis", async (req, res) => {
+  const cached = await redis.get("user:all");
+
+  if (cached) {
+    const user = JSON.parse(cached);
+    return res.json(user);
+  }
+
+  const user = await userModel.find({});
+  await redis.set("user:all", JSON.stringify(user));
   return res.json(user);
 });
 
