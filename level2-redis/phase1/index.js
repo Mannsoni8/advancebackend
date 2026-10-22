@@ -3,6 +3,7 @@ import express, { json } from "express";
 import connectedDB from "./src/lib/db.js";
 import userModel from "./src/model/user.model.js";
 import Redis from "ioredis";
+import { rateLimitter } from "./src/middleware/ratelimit.middleware.js";
 dotenv.config();
 
 const app = express();
@@ -29,7 +30,7 @@ app.post("/create", async (req, res) => {
   return res.json(user);
 });
 
-app.get("/get", async (req, res) => {
+app.get("/get",rateLimitter, async (req, res) => {
   const user = await userModel.find({});
   return res.json(user);
 });

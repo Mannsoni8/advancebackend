@@ -1,6 +1,6 @@
-import { redis } from "../..";
+import { redis } from "../../index.js";
 
-const rateLimitter = async (req, res, next) => {
+export const rateLimitter = async (req, res, next) => {
   const ip = req.ip;
   const key = `rate_limit:${ip}`;
   const request = await redis.incr(key);
