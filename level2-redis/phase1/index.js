@@ -5,6 +5,7 @@ import userModel from "./src/model/user.model.js";
 import Redis from "ioredis";
 import { rateLimitter } from "./src/middleware/ratelimit.middleware.js";
 import sendEmail from "./src/lib/sendEmail.js";
+import emailQueue from "./queue.js";
 dotenv.config();
 
 const app = express();
@@ -31,7 +32,9 @@ app.post("/create", async (req, res) => {
     password,
   });
 
-  await sendEmail(); //without queue
+  await emailQueue.add("send-email", { email });
+
+  // await sendEmail(); //without queue
   return res.json(user);
 });
 
