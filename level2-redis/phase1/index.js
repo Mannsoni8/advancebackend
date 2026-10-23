@@ -4,6 +4,7 @@ import connectedDB from "./src/lib/db.js";
 import userModel from "./src/model/user.model.js";
 import Redis from "ioredis";
 import { rateLimitter } from "./src/middleware/ratelimit.middleware.js";
+import sendEmail from "./src/lib/sendEmail.js";
 dotenv.config();
 
 const app = express();
@@ -17,6 +18,8 @@ app.get("/", (req, res) => {
 
 const port = process.env.PORT || 5000;
 
+//Without - queue
+
 app.post("/create", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -27,10 +30,12 @@ app.post("/create", async (req, res) => {
     email,
     password,
   });
+
+  await sendEmail(); //without queue
   return res.json(user);
 });
 
-app.get("/get",rateLimitter, async (req, res) => {
+app.get("/get", rateLimitter, async (req, res) => {
   const user = await userModel.find({});
   return res.json(user);
 });
