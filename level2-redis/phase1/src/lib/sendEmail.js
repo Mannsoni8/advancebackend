@@ -1,4 +1,4 @@
-const sendEmail = async () => {
+const sendEmail = async (email) => {
   await new Promise((resolve) => {
     setTimeout(resolve, 5000);
   });
