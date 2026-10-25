@@ -1,11 +1,11 @@
 services:
-  ngnix:
-    image: ngnix
+  nginx:
+    image: nginx
     ports:
       - 8080:80
     volumes:
-      - ./ngnix/ngnix.conf:/etc/ngnix/ngnix.conf
-  gateway:
+      - ./nginx/nignx.conf:/etc/nginx/nginx.conf
+  gateway1:
     build: ./server/gateway
     env_file:
       - ./server/gateway/.env
