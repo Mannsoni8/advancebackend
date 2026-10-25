@@ -1,0 +1,49 @@
+services:
+  ngnix:
+    image: ngnix
+    ports:
+      - 8080:80
+    volumes:
+      - ./ngnix/ngnix.conf:/etc/ngnix/ngnix.conf
+  gateway:
+    build: ./server/gateway
+    env_file:
+      - ./server/gateway/.env
+    environment:
+      - SERVER_NAME=pehla gateway
+    ports:
+      - 8001:8000           
+  gateway2:
+    build: ./server/gateway
+    env_file:
+      - ./server/gateway/.env
+    environment:
+      - SERVER_NAME=dusra gateway
+    ports:
+      - 8002:8000           
+  gateway3:
+    build: ./server/gateway
+    env_file:
+      - ./server/gateway/.env
+    environment:
+      - SERVER_NAME=tisra gateway
+    ports:
+      - 8003:8000 
+  auth-service:
+    build: ./server/services/auth  
+    env_file:
+      - ./server/services/auth/.env         
+    ports:
+      - 5001:8001   
+  order-service:
+    build: ./server/services/order  
+    env_file:
+      - ./server/services/order/.env         
+    ports:
+      - 5002:8002
+  product-service:
+    build: ./server/services/product  
+    env_file:
+      - ./server/services/product/.env         
+    ports:
+      - 5003:8003                         
