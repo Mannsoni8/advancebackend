@@ -13,11 +13,11 @@ export const redis = new Redis(process.env.REDIS_URL);
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  return res.status(200).json({ message: "hello redis prac here" });
-});
-
 const port = process.env.PORT || 5000;
+
+app.get("/", (req, res) => {
+  return res.status(200).json({ message: `hello from server ${port}` });
+});
 
 //Without - queue
 
