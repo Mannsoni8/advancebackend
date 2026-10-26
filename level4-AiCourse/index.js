@@ -8,9 +8,10 @@ const app = express();
 app.use(express.json());
 
 const port = 5000;
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+
+// const ai = new GoogleGenAI({
+//   apiKey: process.env.GEMINI_API_KEY,
+// });
 
 // app.post("/ai", async (req, res) => {
 //   try {
@@ -52,14 +53,14 @@ const ai = new GoogleGenAI({
 //with llm
 
 const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-pro",
+  model: "gemini-3.5-flash",
   temperature: 0,
   maxRetries: 2,
 });
 
-app.post("/api",async (req,res) => {
+app.post("/ai",async (req,res) => {
 
-    const {input} = req.boady;
+    const {input} = req.body;
 
     const response = await llm.invoke(input)
 
