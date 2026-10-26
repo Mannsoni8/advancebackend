@@ -2,6 +2,7 @@ import express, { text } from "express";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import {ChatGroq} from "@langchain/groq"
 dotenv.config();
 
 const app = express();
@@ -52,10 +53,25 @@ const port = 5000;
 
 //with llm
 
-const llm = new ChatGoogleGenerativeAI({
-  model: "gemini-3.5-flash",
-  temperature: 0,
-  maxRetries: 2,
+// const llm = new ChatGoogleGenerativeAI({
+//   model: "gemini-3.5-flash",
+//   temperature: 0,
+//   maxRetries: 2,
+// });
+
+// app.post("/ai",async (req,res) => {
+
+//     const {input} = req.body;
+
+//     const response = await llm.invoke(input)
+
+//     return res.json({"ai:":response.content})
+    
+// })
+
+//ChatGroq
+const llm = new ChatGroq({
+  model: "openai/gpt-oss-120b",
 });
 
 app.post("/ai",async (req,res) => {
