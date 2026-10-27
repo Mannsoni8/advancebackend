@@ -106,19 +106,17 @@ const State = Annotation.Root({
 
 const callLLm = async (state) => {
   console.log("state: ", state);
-  const response = await llm.invoke(
-    input[
-      ({
-        role: "system",
-        content:
-          "you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer",
-      },
-      {
-        role: "human",
-        content: state.prompt,
-      })
-    ],
-  );
+  const response = await llm.invoke([
+    {
+      role: "system",
+      content:
+        `you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer`,
+    },
+    {
+      role: "human",
+      content: state.prompt,
+    },
+  ]);
   return { aiMsg: response.content };
 };
 
@@ -136,6 +134,8 @@ app.post("/ai", async (req, res) => {
       prompt: input,
       aiMsg: "",
     });
+
+    console.log(response);
 
     return res.json({
       success: true,
