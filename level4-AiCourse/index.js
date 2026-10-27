@@ -1,8 +1,12 @@
-import express, { text } from "express";
+import express, { response, text } from "express";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { StateGraph, Annotation } from "@langchain/langgraph";
+import {
+  StateGraph,
+  Annotation,
+  MessagesAnnotation,
+} from "@langchain/langgraph";
 import { ChatGroq } from "@langchain/groq";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 dotenv.config();
@@ -100,10 +104,12 @@ const llm = new ChatGroq({
 // });
 
 //lang Graph
-const State = Annotation.Root({
-  prompt: Annotation,
-  aiMsg: Annotation,
-});
+
+//customState
+// const State = Annotation.Root({
+//   prompt: Annotation,
+//   aiMsg: Annotation,
+// });
 
 const tools = [];
 const tooNode = new ToolNode(tools);
@@ -117,17 +123,28 @@ const callLLm = async (state) => {
     },
     {
       role: "human",
-      content: state.prompt,
+      content: state.messages[0].content,
     },
   ]);
-  return { aiMsg: response.content };
+  // console.log("LLM response:", response.content);
+  return { message: [response] };
 };
 
-const graph = new StateGraph(State)
+const shouldContinue = async (state) => {
+  const lastMessage = state.messages[state.messages.length - 1];
+  if (lastMessage?.tool_calls?.length > 0) {
+    return "tools";
+  } else {
+    return "__end__";
+  }
+};
+
+const graph = new StateGraph(MessagesAnnotation)
   .addNode("agent", callLLm)
   .addNode("tools", tooNode)
   .addEdge("__start__", "agent")
-  .addEdge("tools","agent")
+  .addEdge("tools", "agent")
+  .addConditionalEdges("agent", shouldContinue)
   // .addEdge("agent", "__end__")
   .compile();
 
@@ -136,15 +153,14 @@ app.post("/ai", async (req, res) => {
     const { input } = req.body;
 
     const response = await graph.invoke({
-      prompt: input,
-      aiMsg: "",
+      messages: [{ role: "user", content: input }],
     });
 
     console.log(response);
 
     return res.json({
       success: true,
-      ai: response.aiMsg,
+      ai: response.messages[response.messages.length - 1].content,
     });
   } catch (error) {
     console.error("AI Error:", error);
