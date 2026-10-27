@@ -2,7 +2,8 @@ import express, { text } from "express";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import {ChatGroq} from "@langchain/groq"
+import { StateGraph, Annotation } from "@langchain/langgraph";
+import { ChatGroq } from "@langchain/groq";
 dotenv.config();
 
 const app = express();
@@ -66,23 +67,90 @@ const port = 5000;
 //     const response = await llm.invoke(input)
 
 //     return res.json({"ai:":response.content})
-    
+
 // })
 
 //ChatGroq
 const llm = new ChatGroq({
   model: "openai/gpt-oss-120b",
+  temperature: 0.7,
+  maxTokens: 100,
+  maxRetries: 2,
 });
 
-app.post("/ai",async (req,res) => {
+// app.post("/ai", async (req, res) => {
+//   const { input } = req.body;
 
-    const {input} = req.body;
+//   const response = await llm.invoke(
+//     input[
+//       ({
+//         role: "system",
+//         content:
+//           "you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer",
+//       },
+//       {
+//         role: "human",
+//         content: input,
+//       })
+//     ],
+//   );
 
-    const response = await llm.invoke(input)
+//   return res.json({ "ai:": response.content });
+// });
 
-    return res.json({"ai:":response.content})
-    
-})
+//lang Graph
+const State = Annotation.Root({
+  prompt: Annotation,
+  aiMsg: Annotation,
+});
+
+const callLLm = async (state) => {
+  console.log("state: ", state);
+  const response = await llm.invoke(
+    input[
+      ({
+        role: "system",
+        content:
+          "you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer",
+      },
+      {
+        role: "human",
+        content: state.prompt,
+      })
+    ],
+  );
+  return { aiMsg: response.content };
+};
+
+const graph = new StateGraph(State)
+  .addNode("agent", callLLm)
+  .addEdge("__start__", "agent")
+  .addEdge("agent", "__end__");
+
+const appGraph = graph.compile();
+
+app.post("/ai", async (req, res) => {
+  try {
+    const { input } = req.body;
+
+    const response = await appGraph.invoke({
+      prompt: input,
+      aiMsg: "",
+    });
+
+    return res.json({
+      success: true,
+      ai: response.aiMsg,
+    });
+  } catch (error) {
+    console.error("AI Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 app.get("/", (req, res) => {
   return res.json({ message: "Hello from AI Course" });
