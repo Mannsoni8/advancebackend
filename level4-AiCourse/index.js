@@ -125,15 +125,14 @@ const callLLm = async (state) => {
 const graph = new StateGraph(State)
   .addNode("agent", callLLm)
   .addEdge("__start__", "agent")
-  .addEdge("agent", "__end__");
-
-const appGraph = graph.compile();
+  .addEdge("agent", "__end__")
+  .compile();
 
 app.post("/ai", async (req, res) => {
   try {
     const { input } = req.body;
 
-    const response = await appGraph.invoke({
+    const response = await graph.invoke({
       prompt: input,
       aiMsg: "",
     });
