@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { StateGraph, Annotation } from "@langchain/langgraph";
 import { ChatGroq } from "@langchain/groq";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
 dotenv.config();
 
 const app = express();
@@ -104,13 +105,15 @@ const State = Annotation.Root({
   aiMsg: Annotation,
 });
 
+const tools = [];
+const tooNode = new ToolNode(tools);
+
 const callLLm = async (state) => {
   console.log("state: ", state);
   const response = await llm.invoke([
     {
       role: "system",
-      content:
-        `you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer`,
+      content: `you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer`,
     },
     {
       role: "human",
@@ -122,8 +125,10 @@ const callLLm = async (state) => {
 
 const graph = new StateGraph(State)
   .addNode("agent", callLLm)
+  .addNode("tools", tooNode)
   .addEdge("__start__", "agent")
-  .addEdge("agent", "__end__")
+  .addEdge("tools","agent")
+  // .addEdge("agent", "__end__")
   .compile();
 
 app.post("/ai", async (req, res) => {
