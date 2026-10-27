@@ -7,6 +7,7 @@ import {
   Annotation,
   MessagesAnnotation,
 } from "@langchain/langgraph";
+import { TavilySearch } from "@langchain/tavily";
 import { ChatGroq } from "@langchain/groq";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 dotenv.config();
@@ -75,13 +76,22 @@ const port = 5000;
 
 // })
 
+//tavily - tool
+const tool = new TavilySearch({
+  maxResults: 2,
+  topic: "general",
+});
+
+const tools = [tool];
+const tooNode = new ToolNode(tools);
+
 //ChatGroq
 const llm = new ChatGroq({
   model: "openai/gpt-oss-120b",
   temperature: 0.7,
   maxTokens: 100,
   maxRetries: 2,
-});
+}).bindTools(tools);
 
 // app.post("/ai", async (req, res) => {
 //   const { input } = req.body;
@@ -110,9 +120,6 @@ const llm = new ChatGroq({
 //   prompt: Annotation,
 //   aiMsg: Annotation,
 // });
-
-const tools = [];
-const tooNode = new ToolNode(tools);
 
 const callLLm = async (state) => {
   console.log("state: ", state);
