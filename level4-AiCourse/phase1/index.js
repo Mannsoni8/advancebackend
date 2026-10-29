@@ -1,11 +1,12 @@
 import express, { response, text } from "express";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+// import { GoogleGenAI } from "@google/genai";
+// import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import {
   StateGraph,
-  Annotation,
+  // Annotation,
   MessagesAnnotation,
+  MemorySaver,
 } from "@langchain/langgraph";
 import { TavilySearch } from "@langchain/tavily";
 import { ChatGroq } from "@langchain/groq";
@@ -82,14 +83,15 @@ const tool = new TavilySearch({
   topic: "general",
 });
 
+const checkPointer = new MemorySaver();
 const tools = [tool];
 const tooNode = new ToolNode(tools);
 
 //ChatGroq
 const llm = new ChatGroq({
   model: "openai/gpt-oss-120b",
-  temperature: 0.7,
-  maxTokens: 100,
+  temperature: 0,
+  maxTokens: 1024,
   maxRetries: 2,
 }).bindTools(tools);
 
@@ -126,15 +128,27 @@ const callLLm = async (state) => {
   const response = await llm.invoke([
     {
       role: "system",
-      content: `you are a assistant and your name is jarvis. If you don't know the answer then don't give incorrect answer`,
+      content: `
+      You are Jarvis, a concise AI assistant.
+
+        Rules:
+         - Answer directly and briefly.
+         - Use simple, natural language.
+         - Avoid unnecessary introductions, conclusions, and fillers.
+         - Do not repeat information.
+         - Use bullet points only when necessary.
+         - Use tables only when explicitly requested.
+         - For weather queries, give only:
+           temperature, condition, and chance of rain if available.
+         - For web searches, summarize only the most relevant findings.
+         - Never add a long explanation unless the user asks for details.
+         - If you don't know something, say so instead of inventing facts.
+      `,
     },
-    {
-      role: "human",
-      content: state.messages[0].content,
-    },
+    ...state.messages,
   ]);
-  // console.log("LLM response:", response.content);
-  return { message: [response] };
+
+  return { messages: [response] };
 };
 
 const shouldContinue = async (state) => {
@@ -153,32 +167,45 @@ const graph = new StateGraph(MessagesAnnotation)
   .addEdge("tools", "agent")
   .addConditionalEdges("agent", shouldContinue)
   // .addEdge("agent", "__end__")
-  .compile();
+  .compile({checkPointer:checkPointer});
 
 app.post("/ai", async (req, res) => {
   try {
     const { input } = req.body;
 
-    const response = await graph.invoke({
+    if (typeof input !== "string" || !input.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid input string.",
+      });
+    }
+
+    const result = await graph.invoke({
       messages: [{ role: "user", content: input }],
     });
 
-    console.log(response);
+    const lastMessage = result.messages.at(-1);
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      ai: response.messages[response.messages.length - 1].content,
+      ai: lastMessage?.content ?? "",
     });
   } catch (error) {
     console.error("AI Error:", error);
 
+    if (error.status === 429) {
+      return res.status(429).json({
+        success: false,
+        error: "AI rate limit reached. Please try again shortly.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error: "Something went wrong while generating the response.",
     });
   }
 });
-
 app.get("/", (req, res) => {
   return res.json({ message: "Hello from AI Course" });
 });
