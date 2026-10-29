@@ -167,7 +167,7 @@ const graph = new StateGraph(MessagesAnnotation)
   .addEdge("tools", "agent")
   .addConditionalEdges("agent", shouldContinue)
   // .addEdge("agent", "__end__")
-  .compile({checkPointer:checkPointer});
+  .compile({ checkPointer: checkPointer });
 
 app.post("/ai", async (req, res) => {
   try {
@@ -180,9 +180,12 @@ app.post("/ai", async (req, res) => {
       });
     }
 
-    const result = await graph.invoke({
-      messages: [{ role: "user", content: input }],
-    });
+    const result = await graph.invoke(
+      {
+        messages: [{ role: "user", content: input }],
+      },
+      { configurable: { thread_id: "user123" } },
+    );
 
     const lastMessage = result.messages.at(-1);
 
