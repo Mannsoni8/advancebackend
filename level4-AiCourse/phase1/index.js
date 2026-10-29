@@ -83,7 +83,6 @@ const tool = new TavilySearch({
   topic: "general",
 });
 
-const checkPointer = new MemorySaver();
 const tools = [tool];
 const tooNode = new ToolNode(tools);
 
@@ -129,20 +128,14 @@ const callLLm = async (state) => {
     {
       role: "system",
       content: `
-      You are Jarvis, a concise AI assistant.
+        You are Jarvis AI assistant
+        Use conversation memory first.
 
-        Rules:
-         - Answer directly and briefly.
-         - Use simple, natural language.
-         - Avoid unnecessary introductions, conclusions, and fillers.
-         - Do not repeat information.
-         - Use bullet points only when necessary.
-         - Use tables only when explicitly requested.
-         - For weather queries, give only:
-           temperature, condition, and chance of rain if available.
-         - For web searches, summarize only the most relevant findings.
-         - Never add a long explanation unless the user asks for details.
-         - If you don't know something, say so instead of inventing facts.
+        Only use tools when the answer requires
+        external real-time information like:
+        weather, news, web search, stock price etc.
+
+        Do NOT call tools for simple conversation, memory-based questions, greetings, or personal context
       `,
     },
     ...state.messages,
@@ -160,6 +153,8 @@ const shouldContinue = async (state) => {
   }
 };
 
+const checkPointer = new MemorySaver();
+
 const graph = new StateGraph(MessagesAnnotation)
   .addNode("agent", callLLm)
   .addNode("tools", tooNode)
@@ -167,11 +162,11 @@ const graph = new StateGraph(MessagesAnnotation)
   .addEdge("tools", "agent")
   .addConditionalEdges("agent", shouldContinue)
   // .addEdge("agent", "__end__")
-  .compile({ checkPointer: checkPointer });
+  .compile({ checkpointer: checkPointer });
 
 app.post("/ai", async (req, res) => {
   try {
-    const { input } = req.body;
+    const { input, threadId = "user123" } = req.body;
 
     if (typeof input !== "string" || !input.trim()) {
       return res.status(400).json({
@@ -182,33 +177,40 @@ app.post("/ai", async (req, res) => {
 
     const result = await graph.invoke(
       {
-        messages: [{ role: "user", content: input }],
+        messages: [
+          {
+            role: "user",
+            content: input,
+          },
+        ],
       },
-      { configurable: { thread_id: "user123" } },
+      {
+        configurable: {
+          thread_id: threadId,
+        },
+      },
     );
 
     const lastMessage = result.messages.at(-1);
 
     return res.status(200).json({
       success: true,
+      threadId,
       ai: lastMessage?.content ?? "",
     });
   } catch (error) {
     console.error("AI Error:", error);
 
-    if (error.status === 429) {
-      return res.status(429).json({
-        success: false,
-        error: "AI rate limit reached. Please try again shortly.",
-      });
-    }
-
-    return res.status(500).json({
+    return res.status(error.status === 429 ? 429 : 500).json({
       success: false,
-      error: "Something went wrong while generating the response.",
+      error:
+        error.status === 429
+          ? "AI rate limit reached. Please try again shortly."
+          : "Something went wrong while generating the response.",
     });
   }
 });
+
 app.get("/", (req, res) => {
   return res.json({ message: "Hello from AI Course" });
 });
