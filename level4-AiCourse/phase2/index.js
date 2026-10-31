@@ -6,6 +6,11 @@ import { ChatGroq } from "@langchain/groq";
 import fs from "fs";
 import { PDFParse } from "pdf-parse";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { TaskType } from "@google/generative-ai";
+import { QdrantVectorStore } from "@langchain/qdrant";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 dotenv.config();
 
@@ -22,6 +27,17 @@ const llm = new ChatGroq({
   maxRetries: 2,
 });
 
+const embeddings = new GoogleGenerativeAIEmbeddings({
+  model: "gemini-embedding-001", // 768 dimensions
+  taskType: TaskType.RETRIEVAL_DOCUMENT,
+  title: "Document title",
+});
+
+const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
+  url: process.env.QDRANT_URL,
+  collectionName: "langchainjs-testing",
+});
+
 const upload = async () => {
   const pdfPath = "./knowledge.pdf";
   const buffer = fs.readFileSync(pdfPath);
@@ -33,28 +49,36 @@ const upload = async () => {
     chunkOverlap: 100,
   });
   const docs = await splitletter.createDocuments([text]);
- // console.log("Text", result.text);
-  console.log(docs)
+
+  await vectorStore.addDocuments(docs);
+
+  // console.log("Text", result.text);
+  //console.log(docs);
   //console.log("PDFRES: ", pdfResult);
 };
-upload();
 
 app.post("/ai", async (req, res) => {
-  try {
-    const { input } = req.body;
-    const responce = await llm.invoke({
-      input,
-      //   messages: [
-      //     {
-      //       role: "user",
-      //       content: input,
-      //     },
-      //   ],
-    });
-    // console.log(responce.messages);
-  } catch (error) {
-    console.error("AI Error:", error);
-  }
+  const { input } = req.body;
+
+  const docs = await vectorStore.similaritySearch(input, 5);
+  const context = docs.map((d) => d.pageContent).join("/n");
+
+  const responce = await llm.invoke([
+    new SystemMessage(`You are a RAG AI assistant.
+     
+    STRICT RULES:
+    - Answer ONLY from context
+    - Do not use outside knowledge
+    - If answer not found say:
+      "I don't know from uploaded PDF".
+    
+    Context:${context}  
+        `),
+       new HumanMessage(input),
+  ]);
+  // console.log(responce.messages);
+
+  return res.status(200).json({ai:responce.content});
 });
 
 app.get("/", (req, res) => {
